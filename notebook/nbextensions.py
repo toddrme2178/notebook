@@ -41,7 +41,8 @@ NBCONFIG_SECTIONS = ['common', 'notebook', 'tree', 'edit', 'terminal']
 # Public API
 #------------------------------------------------------------------------------
 
-def check_nbextension(files, user=False, prefix=None, nbextensions_dir=None, sys_prefix=False):
+def check_nbextension(files, user=False, prefix=None, nbextensions_dir=None,
+                      sys_prefix=False, root=None):
     """Check whether nbextension files have been installed
     
     Returns True if all files are found, False if any are missing.
@@ -61,8 +62,12 @@ def check_nbextension(files, user=False, prefix=None, nbextensions_dir=None, sys
         Specify absolute path of nbextensions directory explicitly.
     sys_prefix : bool [default: False]
         Install into the sys.prefix, i.e. environment
+    root : str [optional]
+        Specify absolute path to root directory.
+        All other paths will be treated as subdirectories of this.
     """
-    nbext = _get_nbextension_dir(user=user, sys_prefix=sys_prefix, prefix=prefix, nbextensions_dir=nbextensions_dir)
+    nbext = _get_nbextension_dir(user=user, sys_prefix=sys_prefix, prefix=prefix,
+                                 nbextensions_dir=nbextensions_dir, root=root)
     # make sure nbextensions dir exists
     if not os.path.exists(nbext):
         return False
@@ -77,7 +82,7 @@ def check_nbextension(files, user=False, prefix=None, nbextensions_dir=None, sys
 def install_nbextension(path, overwrite=False, symlink=False,
                         user=False, prefix=None, nbextensions_dir=None,
                         destination=None, verbose=DEPRECATED_ARGUMENT,
-                        logger=None, sys_prefix=False
+                        logger=None, sys_prefix=False, root=None
                         ):
     """Install a Javascript extension for the notebook
     
@@ -113,6 +118,9 @@ def install_nbextension(path, overwrite=False, symlink=False,
         This cannot be specified if an archive is given as the source.
     logger : Jupyter logger [optional]
         Logger instance to use
+    root : str [optional]
+        Specify absolute path to root directory.
+        All other paths will be treated as subdirectories of this.
     """
     if verbose != DEPRECATED_ARGUMENT:
         import warnings
@@ -121,7 +129,8 @@ def install_nbextension(path, overwrite=False, symlink=False,
     # the actual path to which we eventually installed
     full_dest = None
 
-    nbext = _get_nbextension_dir(user=user, sys_prefix=sys_prefix, prefix=prefix, nbextensions_dir=nbextensions_dir)
+    nbext = _get_nbextension_dir(user=user, sys_prefix=sys_prefix, prefix=prefix,
+                                 nbextensions_dir=nbextensions_dir, root=root)
     # make sure nbextensions dir exists
     ensure_dir_exists(nbext)
     
@@ -202,7 +211,7 @@ def install_nbextension(path, overwrite=False, symlink=False,
 
 
 def install_nbextension_python(module, overwrite=False, symlink=False,
-                        user=False, sys_prefix=False, prefix=None, nbextensions_dir=None, logger=None):
+                        user=False, sys_prefix=False, prefix=None, nbextensions_dir=None, logger=None, root=root):
     """Install an nbextension bundled in a Python package.
 
     Returns a list of installed/updated directories.
@@ -231,7 +240,7 @@ def install_nbextension_python(module, overwrite=False, symlink=False,
 
 
 def uninstall_nbextension(dest, require=None, user=False, sys_prefix=False, prefix=None, 
-                          nbextensions_dir=None, logger=None):
+                          nbextensions_dir=None, logger=None, root=None):
     """Uninstall a Javascript extension of the notebook
     
     Removes staged files and/or directories in the nbextensions directory and 
@@ -258,8 +267,12 @@ def uninstall_nbextension(dest, require=None, user=False, sys_prefix=False, pref
         Specify absolute path of nbextensions directory explicitly.
     logger : Jupyter logger [optional]
         Logger instance to use
+    root : str [optional]
+        Specify absolute path to root directory.
+        All other paths will be treated as subdirectories of this.
     """
-    nbext = _get_nbextension_dir(user=user, sys_prefix=sys_prefix, prefix=prefix, nbextensions_dir=nbextensions_dir)
+    nbext = _get_nbextension_dir(user=user, sys_prefix=sys_prefix, prefix=prefix,
+                                 nbextensions_dir=nbextensions_dir, root=root)
     dest = cast_unicode_py2(dest)
     full_dest = pjoin(nbext, dest)
     if os.path.lexists(full_dest):
@@ -272,7 +285,7 @@ def uninstall_nbextension(dest, require=None, user=False, sys_prefix=False, pref
     
     # Look through all of the config sections making sure that the nbextension
     # doesn't exist.
-    config_dir = os.path.join(_get_config_dir(user=user, sys_prefix=sys_prefix), 'nbconfig')
+    config_dir = os.path.join(_get_config_dir(user=user, sys_prefix=sys_prefix, root=root), 'nbconfig')
     cm = BaseJSONConfigManager(config_dir=config_dir)
     if require:
         for section in NBCONFIG_SECTIONS:
@@ -297,7 +310,7 @@ def uninstall_nbextension_python(module,
 
 
 def _set_nbextension_state(section, require, state,
-                           user=True, sys_prefix=False, logger=None):
+                           user=True, sys_prefix=False, logger=None, root=None):
     """Set whether the section's frontend should require the named nbextension
 
     Returns True if the final state is the one requested.
@@ -317,10 +330,13 @@ def _set_nbextension_state(section, require, state,
         `user`.
     logger : Jupyter logger [optional]
         Logger instance to use
+    root : str [optional]
+        Specify absolute path to root directory.
+        All other paths will be treated as subdirectories of this.
     """
     user = False if sys_prefix else user
     config_dir = os.path.join(
-        _get_config_dir(user=user, sys_prefix=sys_prefix), 'nbconfig')
+        _get_config_dir(user=user, sys_prefix=sys_prefix, root=root), 'nbconfig')
     cm = BaseJSONConfigManager(config_dir=config_dir)
     if logger:
         logger.info("{} {} extension {}...".format(
@@ -336,7 +352,7 @@ def _set_nbextension_state(section, require, state,
 
 
 def _set_nbextension_state_python(state, module, user, sys_prefix,
-                                  logger=None):
+                                  logger=None, root=None):
     """Enable or disable some nbextensions stored in a Python package
 
     Returns a list of whether the state was achieved (i.e. changed, or was
@@ -356,18 +372,21 @@ def _set_nbextension_state_python(state, module, user, sys_prefix,
         Enable/disable in the sys.prefix, i.e. environment
     logger : Jupyter logger [optional]
         Logger instance to use
+    root : str [optional]
+        Specify absolute path to root directory.
+        All other paths will be treated as subdirectories of this.
     """
     m, nbexts = _get_nbextension_metadata(module)
     return [_set_nbextension_state(section=nbext["section"],
                                    require=nbext["require"],
                                    state=state,
                                    user=user, sys_prefix=sys_prefix,
-                                   logger=logger)
+                                   logger=logger, root=root)
             for nbext in nbexts]
 
 
 def enable_nbextension(section, require, user=True, sys_prefix=False,
-                       logger=None):
+                       logger=None, root=None):
     """Enable a named nbextension
 
     Returns True if the final state is the one requested.
@@ -386,15 +405,18 @@ def enable_nbextension(section, require, user=True, sys_prefix=False,
         `user`
     logger : Jupyter logger [optional]
         Logger instance to use
+    root : str [optional]
+        Specify absolute path to root directory.
+        All other paths will be treated as subdirectories of this.
     """
     return _set_nbextension_state(section=section, require=require,
                                   state=True,
                                   user=user, sys_prefix=sys_prefix,
-                                  logger=logger)
+                                  logger=logger, root=root)
 
 
 def disable_nbextension(section, require, user=True, sys_prefix=False,
-                        logger=None):
+                        logger=None, root=None):
     """Disable a named nbextension
     
     Returns True if the final state is the one requested.
@@ -413,15 +435,18 @@ def disable_nbextension(section, require, user=True, sys_prefix=False,
         `user`.
     logger : Jupyter logger [optional]
         Logger instance to use
+    root : str [optional]
+        Specify absolute path to root directory.
+        All other paths will be treated as subdirectories of this.
     """
     return _set_nbextension_state(section=section, require=require,
                                   state=False,
                                   user=user, sys_prefix=sys_prefix,
-                                  logger=logger)
+                                  logger=logger, root=root)
 
 
 def enable_nbextension_python(module, user=True, sys_prefix=False,
-                              logger=None):
+                              logger=None, root=None):
     """Enable some nbextensions associated with a Python module.
 
     Returns a list of whether the state was achieved (i.e. changed, or was
@@ -440,13 +465,16 @@ def enable_nbextension_python(module, user=True, sys_prefix=False,
         `user`
     logger : Jupyter logger [optional]
         Logger instance to use
+    root : str [optional]
+        Specify absolute path to root directory.
+        All other paths will be treated as subdirectories of this.
     """
     return _set_nbextension_state_python(True, module, user, sys_prefix,
-                                         logger=logger)
+                                         logger=logger, root=root)
 
 
 def disable_nbextension_python(module, user=True, sys_prefix=False,
-                               logger=None):
+                               logger=None, root=None):
     """Disable some nbextensions associated with a Python module.
     
     Returns True if the final state is the one requested.
@@ -463,9 +491,12 @@ def disable_nbextension_python(module, user=True, sys_prefix=False,
         Whether to enable in the sys.prefix, i.e. environment
     logger : Jupyter logger [optional]
         Logger instance to use
+    root : str [optional]
+        Specify absolute path to root directory.
+        All other paths will be treated as subdirectories of this.
     """
     return _set_nbextension_state_python(False, module, user, sys_prefix,
-                                         logger=logger)
+                                         logger=logger, root=root)
 
 
 def validate_nbextension(require, logger=None):
@@ -598,6 +629,7 @@ aliases.update({
     "prefix" : "InstallNBExtensionApp.prefix",
     "nbextensions" : "InstallNBExtensionApp.nbextensions_dir",
     "destination" : "InstallNBExtensionApp.destination",
+    "root" : "InstallNBExtensionApp.root",
 })
 
 class InstallNBExtensionApp(BaseExtensionApp):
@@ -606,7 +638,7 @@ class InstallNBExtensionApp(BaseExtensionApp):
     
     Usage
     
-        jupyter nbextension install path|url [--user|--sys-prefix]
+        jupyter nbextension install path|url [--user|--sys-prefix|--root]
     
     This copies a file or a folder into the Jupyter nbextensions directory.
     If a URL is given, it will be downloaded.
@@ -628,6 +660,7 @@ class InstallNBExtensionApp(BaseExtensionApp):
     nbextensions_dir = Unicode('', config=True,
            help="Full path to nbextensions dir (probably use prefix or user)")
     destination = Unicode('', config=True, help="Destination for the copy or symlink")
+    root = Unicode('', config=True, help="Installation root directory")
 
     def _config_file_name_default(self):
         """The default config file name."""
@@ -654,6 +687,7 @@ class InstallNBExtensionApp(BaseExtensionApp):
                              prefix=self.prefix,
                              nbextensions_dir=self.nbextensions_dir,
                              logger=self.log,
+                             root=self.root,
                              **kwargs
                             )
 
@@ -661,11 +695,12 @@ class InstallNBExtensionApp(BaseExtensionApp):
             self.log.info(
                 u"\nTo initialize this nbextension in the browser every time"
                 " the notebook (or other app) loads:\n\n"
-                "      jupyter nbextension enable {}{}{}{}\n".format(
+                "      jupyter nbextension enable {}{}{}{}{}\n".format(
                     self.extra_args[0] if self.python else "<the entry point>",
                     " --user" if self.user else "",
                     " --py" if self.python else "",
                     " --sys-prefix" if self.sys_prefix else ""
+                    " --root" if self.root else ""
                 )
             )
 
@@ -702,11 +737,13 @@ class UninstallNBExtensionApp(BaseExtensionApp):
         "prefix" : "UninstallNBExtensionApp.prefix",
         "nbextensions" : "UninstallNBExtensionApp.nbextensions_dir",
         "require": "UninstallNBExtensionApp.require",
+        "root" : "UninstallNBExtensionApp.root",
     }
     
     prefix = Unicode('', config=True, help="Installation prefix")
     nbextensions_dir = Unicode('', config=True, help="Full path to nbextensions dir (probably use prefix or user)")
     require = Unicode('', config=True, help="require.js module to load.")
+    root = Unicode('', config=True, help="Installation root")
     
     def _config_file_name_default(self):
         """The default config file name."""
@@ -719,7 +756,8 @@ class UninstallNBExtensionApp(BaseExtensionApp):
             'sys_prefix': self.sys_prefix,
             'prefix': self.prefix,
             'nbextensions_dir': self.nbextensions_dir,
-            'logger': self.log
+            'logger': self.log,
+            'root': self.root
         }
         
         arg_count = 1
@@ -781,7 +819,8 @@ class ToggleNBExtensionApp(BaseExtensionApp):
         return toggle(module,
                       user=self.user,
                       sys_prefix=self.sys_prefix,
-                      logger=self.log)
+                      logger=self.log,
+                      root=self.root)
 
     def toggle_nbextension(self, require):
         """Toggle some a named nbextension by require-able AMD module.
@@ -797,7 +836,7 @@ class ToggleNBExtensionApp(BaseExtensionApp):
                   else disable_nbextension)
         return toggle(self.section, require,
                       user=self.user, sys_prefix=self.sys_prefix,
-                      logger=self.log)
+                      logger=self.log, root=self.root)
         
     def start(self):
         if not self.extra_args:
@@ -975,7 +1014,7 @@ def _safe_is_tarfile(path):
         return False
 
 
-def _get_nbextension_dir(user=False, sys_prefix=False, prefix=None, nbextensions_dir=None):
+def _get_nbextension_dir(user=False, sys_prefix=False, prefix=None, nbextensions_dir=None, root=None):
     """Return the nbextension directory specified
 
     Parameters
@@ -988,7 +1027,9 @@ def _get_nbextension_dir(user=False, sys_prefix=False, prefix=None, nbextensions
     prefix : str [optional]
         Get custom prefix
     nbextensions_dir : str [optional]
-        Get what you put in
+        Get what you put ins
+    root : str [optional]
+        Get custom root directory
     """
     conflicting = [
         ('user', user),
@@ -1011,18 +1052,22 @@ def _get_nbextension_dir(user=False, sys_prefix=False, prefix=None, nbextensions
         nbext = nbextensions_dir
     else:
         nbext = pjoin(SYSTEM_JUPYTER_PATH[0], 'nbextensions')
+    if root:
+        nbext = pjoin(root, nbext)
     return nbext
 
 
-def _nbextension_dirs():
+def _nbextension_dirs(root=None):
     """The possible locations of nbextensions.
 
     Returns a list of known base extension locations
     """
+    if root is None:
+        root = ''
     return [
-        pjoin(jupyter_data_dir(), u'nbextensions'),
-        pjoin(ENV_JUPYTER_PATH[0], u'nbextensions'),
-        pjoin(SYSTEM_JUPYTER_PATH[0], 'nbextensions')
+        pjoin(root, jupyter_data_dir(), u'nbextensions'),
+        pjoin(root, ENV_JUPYTER_PATH[0], u'nbextensions'),
+        pjoin(root, SYSTEM_JUPYTER_PATH[0], 'nbextensions')
     ]
 
 
