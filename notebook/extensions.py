@@ -5,8 +5,9 @@
 # Distributed under the terms of the Modified BSD License.
 
 import os
+import os.path.join as pjoin
 from tornado.log import LogFormatter
-from traitlets import Bool, Any
+from traitlets import Bool, Any, Unicode
 from jupyter_core.application import JupyterApp
 from jupyter_core.paths import (
     jupyter_config_dir, ENV_CONFIG_PATH, SYSTEM_CONFIG_PATH
@@ -37,6 +38,11 @@ _base_flags.update({
             "sys_prefix" : True,
         }}, "Use sys.prefix as the prefix for installing nbextensions (for environments, packaging)"
     ),
+    "root" : ({
+        "BaseExtensionApp" : {
+            "root" : None,
+        }}, "Interpet all other directories as being relative to this directory (for packaging)"
+    ),
     "py" : ({
         "BaseExtensionApp" : {
             "python" : True,
@@ -59,6 +65,7 @@ class BaseExtensionApp(JupyterApp):
     user = Bool(False, config=True, help="Whether to do a user install")
     sys_prefix = Bool(False, config=True, help="Use the sys.prefix as the prefix")
     python = Bool(False, config=True, help="Install from a Python package")
+    root = Unicode('', config=True, help="Set root directory")
 
     # Remove for 5.0...
     verbose = Any(None, config=True, help="DEPRECATED: Verbosity level")
@@ -72,7 +79,7 @@ class BaseExtensionApp(JupyterApp):
         """A default format for messages"""
         return "%(message)s"
 
-def _get_config_dir(user=False, sys_prefix=False):
+def _get_config_dir(user=False, sys_prefix=False, root=None):
     """Get the location of config files for the current context
 
     Returns the string to the enviornment
@@ -94,6 +101,8 @@ def _get_config_dir(user=False, sys_prefix=False):
         nbext = ENV_CONFIG_PATH[0]
     else:
         nbext = SYSTEM_CONFIG_PATH[0]
+    if root:
+        nbext = pjoin(root, nbext)
     return nbext
 
 # Constants for pretty print extension listing function.
