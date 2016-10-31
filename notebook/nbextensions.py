@@ -211,7 +211,7 @@ def install_nbextension(path, overwrite=False, symlink=False,
 
 
 def install_nbextension_python(module, overwrite=False, symlink=False,
-                        user=False, sys_prefix=False, prefix=None, nbextensions_dir=None, logger=None, root=root):
+                        user=False, sys_prefix=False, prefix=None, nbextensions_dir=None, logger=None, root=None):
     """Install an nbextension bundled in a Python package.
 
     Returns a list of installed/updated directories.
@@ -294,7 +294,7 @@ def uninstall_nbextension(dest, require=None, user=False, sys_prefix=False, pref
 
 def uninstall_nbextension_python(module,
                         user=False, sys_prefix=False, prefix=None, nbextensions_dir=None,
-                        logger=None):
+                        logger=None, root=None):
     """Uninstall an nbextension bundled in a Python package.
     
     See parameters of `install_nbextension_python`
@@ -306,7 +306,7 @@ def uninstall_nbextension_python(module,
         if logger:
             logger.info("Uninstalling {} {}".format(dest, require))
         uninstall_nbextension(dest, require, user=user, sys_prefix=sys_prefix, 
-            prefix=prefix, nbextensions_dir=nbextensions_dir, logger=logger)
+            prefix=prefix, nbextensions_dir=nbextensions_dir, logger=logger, root=root)
 
 
 def _set_nbextension_state(section, require, state,
