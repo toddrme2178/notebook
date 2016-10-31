@@ -24,7 +24,7 @@ from traitlets.config.manager import BaseJSONConfigManager
 # ------------------------------------------------------------------------------
 
 def toggle_serverextension_python(import_name, enabled=None, parent=None,
-                                  user=True, sys_prefix=False, logger=None):
+                                  user=True, sys_prefix=False, logger=None, root=None):
     """Toggle a server extension.
 
     By default, toggles the extension in the system-wide Jupyter configuration
@@ -47,9 +47,12 @@ def toggle_serverextension_python(import_name, enabled=None, parent=None,
         (e.g. ~/.envs/my-env/etc/jupyter). Will override `user`.
     logger : Jupyter logger [optional]
         Logger instance to use
+    root : str [optional]
+        Specify absolute path to root directory.
+        All other paths will be treated as subdirectories of this.
     """
     user = False if sys_prefix else user
-    config_dir = _get_config_dir(user=user, sys_prefix=sys_prefix)
+    config_dir = _get_config_dir(user=user, sys_prefix=sys_prefix, root=root)
     cm = BaseJSONConfigManager(parent=parent, config_dir=config_dir)
     cfg = cm.get("jupyter_notebook_config")
     server_extensions = (
@@ -148,6 +151,11 @@ flags.update({
             "sys_prefix" : True,
         }}, "Use sys.prefix as the prefix for installing server extensions"
     ),
+    "root" : ({
+        "ToggleServerExtensionApp" : {
+            "root" : None,
+        }}, "Interpet all other directories as being relative to this directory (for packaging)"
+    ),
     "py" : ({
         "ToggleServerExtensionApp" : {
             "python" : True,
@@ -167,6 +175,7 @@ class ToggleServerExtensionApp(BaseExtensionApp):
     user = Bool(True, config=True, help="Whether to do a user install")
     sys_prefix = Bool(False, config=True, help="Use the sys.prefix as the prefix")
     python = Bool(False, config=True, help="Install from a Python package")
+    root = Unicode('', config=True, help="Set root directory")
     
     def toggle_server_extension(self, import_name):
         """Change the status of a named server extension.
@@ -182,7 +191,7 @@ class ToggleServerExtensionApp(BaseExtensionApp):
         """
         toggle_serverextension_python(
             import_name, self._toggle_value, parent=self, user=self.user,
-            sys_prefix=self.sys_prefix, logger=self.log)
+            sys_prefix=self.sys_prefix, logger=self.log, root=self.root)
 
     def toggle_server_extension_python(self, package):
         """Change the status of some server extensions in a Python package.
